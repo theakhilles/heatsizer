@@ -59,6 +59,8 @@ if "lead_captured" not in st.session_state:
     st.session_state.lead_captured = False
 if "lead_name" not in st.session_state:
     st.session_state.lead_name = ""
+if "run_calculation" not in st.session_state:
+    st.session_state.run_calculation = False
 
 def save_lead(name, email, location, application):
     """Append lead to CSV. Fails silently so tool still works."""
@@ -119,6 +121,8 @@ with st.sidebar:
     )
 
     run = st.button("Calculate", type="primary", use_container_width=True)
+    if run:
+        st.session_state.run_calculation = True
 
 climate = dict(climate)
 climate["electricity_price"] = elec_price_override
@@ -324,7 +328,7 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
     return buf
 
 # ── Main panel ───────────────────────────────────────────────
-if run:
+if st.session_state.run_calculation:
     if not lead_gate(location, application):
         st.stop()
 
@@ -440,10 +444,7 @@ if run:
     )
 
 else:
-    if not st.session_state.lead_captured:
-        st.info("👈 Enter your building details in the sidebar and click **Calculate** to get a recommendation.")
-    else:
-        st.info(f"👈 Adjust your inputs and click **Calculate** again.")
+    st.info("👈 Enter your building details in the sidebar and click **Calculate** to get a recommendation.")
 
     st.markdown("### How this tool works")
     st.markdown(
