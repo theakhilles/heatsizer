@@ -5,14 +5,12 @@ design_temp_heating: outdoor design temperature (degC) per EN 12831 / local norm
 design_temp_cooling: outdoor design temperature (degC) for cooling sizing
 HDD: heating degree days, base 18degC (annual)
 CDD: cooling degree days, base 24degC (annual)
-indoor_set_heating / indoor_set_cooling: assumed indoor design setpoints (degC)
+cdd_monthly: monthly CDD values (list of 12), Jan-Dec, summing to CDD
+solar_monthly: monthly in-plane solar irradiation kWh/(m2*month) at optimal tilt
+t_amb_night: representative night ambient temperature (degC) for TES night-charging
 electricity_price: EUR or local-currency-equivalent per kWh (default, editable in UI)
 grid_co2_kg_per_kwh: grid emission factor (kg CO2 / kWh electricity)
 gas_price / gas_co2: for comparison with existing fossil systems
-
-NOTE: These are representative planning values for a sizing TOOL, not a substitute
-for a full EN 12831 calculation or local climate data. Refine with local weather
-station data before final engineering decisions.
 """
 
 CLIMATES = {
@@ -24,8 +22,11 @@ CLIMATES = {
         "indoor_set_cooling": 26,
         "HDD": 3450,
         "CDD": 80,
-        "electricity_price": 0.32,   # EUR/kWh
-        "gas_price": 0.10,           # EUR/kWh
+        "cdd_monthly": [0, 0, 0, 0, 2, 12, 28, 24, 10, 4, 0, 0],
+        "solar_monthly": [45, 65, 110, 145, 170, 180, 190, 175, 130, 85, 45, 35],
+        "t_amb_night": 12,
+        "electricity_price": 0.32,
+        "gas_price": 0.10,
         "grid_co2_kg_per_kwh": 0.38,
         "gas_co2_kg_per_kwh": 0.20,
     },
@@ -37,6 +38,9 @@ CLIMATES = {
         "indoor_set_cooling": 26,
         "HDD": 3150,
         "CDD": 90,
+        "cdd_monthly": [0, 0, 0, 0, 3, 14, 32, 27, 10, 4, 0, 0],
+        "solar_monthly": [38, 58, 105, 140, 170, 175, 185, 165, 120, 78, 40, 30],
+        "t_amb_night": 11,
         "electricity_price": 0.32,
         "gas_price": 0.10,
         "grid_co2_kg_per_kwh": 0.38,
@@ -50,9 +54,12 @@ CLIMATES = {
         "indoor_set_cooling": 26,
         "HDD": 3050,
         "CDD": 100,
+        "cdd_monthly": [0, 0, 0, 0, 4, 16, 38, 30, 10, 2, 0, 0],
+        "solar_monthly": [48, 68, 115, 148, 175, 182, 195, 178, 132, 88, 48, 38],
+        "t_amb_night": 13,
         "electricity_price": 0.28,
         "gas_price": 0.11,
-        "grid_co2_kg_per_kwh": 0.16,   # AT grid is mostly hydro/renewables
+        "grid_co2_kg_per_kwh": 0.16,
         "gas_co2_kg_per_kwh": 0.20,
     },
     "Hamburg, DE": {
@@ -63,6 +70,9 @@ CLIMATES = {
         "indoor_set_cooling": 26,
         "HDD": 3300,
         "CDD": 50,
+        "cdd_monthly": [0, 0, 0, 0, 1, 8, 20, 16, 5, 0, 0, 0],
+        "solar_monthly": [35, 52, 98, 135, 165, 168, 178, 158, 112, 72, 36, 26],
+        "t_amb_night": 10,
         "electricity_price": 0.32,
         "gas_price": 0.10,
         "grid_co2_kg_per_kwh": 0.38,
@@ -76,9 +86,12 @@ CLIMATES = {
         "indoor_set_cooling": 24,
         "HDD": 250,
         "CDD": 4200,
-        "electricity_price": 0.048,   # SAR ~0.18/kWh converted approx to EUR
+        "cdd_monthly": [0, 0, 42, 180, 462, 600, 672, 630, 420, 147, 42, 5],
+        "solar_monthly": [155, 160, 185, 195, 220, 220, 215, 210, 195, 180, 155, 140],
+        "t_amb_night": 30,
+        "electricity_price": 0.048,
         "gas_price": 0.04,
-        "grid_co2_kg_per_kwh": 0.60,  # gas/oil-heavy generation mix
+        "grid_co2_kg_per_kwh": 0.60,
         "gas_co2_kg_per_kwh": 0.20,
     },
     "Jeddah, SA": {
@@ -89,6 +102,9 @@ CLIMATES = {
         "indoor_set_cooling": 24,
         "HDD": 50,
         "CDD": 4800,
+        "cdd_monthly": [120, 145, 215, 270, 450, 570, 630, 620, 510, 360, 210, 130],
+        "solar_monthly": [165, 170, 195, 200, 225, 210, 195, 190, 195, 185, 160, 150],
+        "t_amb_night": 28,
         "electricity_price": 0.048,
         "gas_price": 0.04,
         "grid_co2_kg_per_kwh": 0.65,
@@ -102,6 +118,9 @@ CLIMATES = {
         "indoor_set_cooling": 24,
         "HDD": 150,
         "CDD": 4400,
+        "cdd_monthly": [0, 10, 66, 210, 484, 600, 660, 638, 462, 198, 55, 17],
+        "solar_monthly": [148, 155, 178, 192, 215, 218, 210, 205, 188, 172, 148, 132],
+        "t_amb_night": 29,
         "electricity_price": 0.048,
         "gas_price": 0.04,
         "grid_co2_kg_per_kwh": 0.62,
@@ -115,16 +134,17 @@ CLIMATES = {
         "indoor_set_cooling": 24,
         "HDD": 300,
         "CDD": 3600,
+        "cdd_monthly": [0, 0, 36, 150, 396, 540, 612, 594, 396, 162, 36, 0],
+        "solar_monthly": [168, 175, 200, 210, 230, 225, 218, 212, 200, 190, 165, 152],
+        "t_amb_night": 26,
         "electricity_price": 0.045,
         "gas_price": 0.04,
-        "grid_co2_kg_per_kwh": 0.10,  # planned renewable-heavy supply
+        "grid_co2_kg_per_kwh": 0.10,
         "gas_co2_kg_per_kwh": 0.20,
     },
 }
 
-# Specific design heat load (W/m2) at the building's reference design delta-T
-# (assumes reference delta-T of 30 K, i.e. 20 degC indoor vs -10 degC outdoor;
-# scaled to the actual location design delta-T in calculations)
+# Specific design heat load (W/m2) at building reference design delta-T of 30 K
 INSULATION_CLASSES = {
     "Old / unrenovated (pre-1980)": 100,
     "Partially renovated": 70,
@@ -139,3 +159,7 @@ COOLING_LOAD_CLASSES = {
     "Modern standard (double glazing, shading)": 75,
     "New build / high-performance envelope": 55,
 }
+
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+DAYS_PER_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
