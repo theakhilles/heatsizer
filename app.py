@@ -24,7 +24,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image as RLImage
 )
 
 from data.climate_data import CLIMATES, INSULATION_CLASSES, COOLING_LOAD_CLASSES
@@ -47,11 +47,13 @@ LEADS_FILE = "leads.csv"
 st.set_page_config(page_title="Thotec Sizer", page_icon="🌡️", layout="wide")
 
 # ── Header ───────────────────────────────────────────────────
-import os as _os
-if _os.path.exists("logo.png"):
-    st.image("logo.png", width=180)
-st.title("Thotec Sizer")
-st.caption("Heat pump sizing & feasibility — Europe & Gulf  |  Thotec · eng.akasem@gmail.com")
+_col_logo, _col_title = st.columns([1, 5])
+with _col_logo:
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=140)
+with _col_title:
+    st.title("Thotec Sizer")
+    st.caption("Heat pump sizing & feasibility — Europe & Gulf")
 st.markdown(
     "Enter your building details to get an instant heat pump recommendation, "
     "expected energy performance, running costs, and CO₂ impact. "
@@ -67,15 +69,40 @@ if "lead_name" not in st.session_state:
 if "run_calculation" not in st.session_state:
     st.session_state.run_calculation = False
 
+def _save_to_gsheets(row):
+    """Write a row to Google Sheets if credentials are configured."""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        creds_dict = st.secrets.get("gcp_service_account", None)
+        sheet_id   = st.secrets.get("LEADS_SHEET_ID", None)
+        if not creds_dict or not sheet_id:
+            return False
+        scopes = ["https://spreadsheets.google.com/feeds",
+                  "https://www.googleapis.com/auth/drive"]
+        creds  = Credentials.from_service_account_info(dict(creds_dict), scopes=scopes)
+        client = gspread.authorize(creds)
+        sheet  = client.open_by_key(sheet_id).sheet1
+        if sheet.row_count < 2:
+            sheet.append_row(["timestamp", "name", "email", "location", "application"])
+        sheet.append_row(row)
+        return True
+    except Exception:
+        return False
+
+
 def save_lead(name, email, location, application):
-    """Append lead to CSV. Fails silently so tool still works."""
+    """Save lead to Google Sheets (primary) and local CSV (fallback)."""
+    row = [datetime.utcnow().isoformat(), name, email, location, application]
+    saved_remote = _save_to_gsheets(row)
+    # Always write local CSV as backup
     try:
         file_exists = os.path.isfile(LEADS_FILE)
         with open(LEADS_FILE, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if not file_exists:
                 writer.writerow(["timestamp", "name", "email", "location", "application"])
-            writer.writerow([datetime.utcnow().isoformat(), name, email, location, application])
+            writer.writerow(row)
     except Exception:
         pass
 
@@ -211,6 +238,9 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
     story = []
 
     # Header
+    if os.path.exists("logo.png"):
+        story.append(RLImage("logo.png", width=5*cm, height=2.5*cm))
+        story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph("Thotec — Heat Pump Sizing Report", title_style))
     story.append(Paragraph("Thotec  ·  eng.akasem@gmail.com", sub_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=BRAND_BLUE, spaceAfter=10))
@@ -514,6 +544,9 @@ def build_gulf_pdf(result, climate, cost_combined, cost_baseline,
                                 textColor=BRAND_GRAY, fontSize=8)
 
     story = []
+    if os.path.exists("logo.png"):
+        story.append(RLImage("logo.png", width=5*cm, height=2.5*cm))
+        story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph("Thotec — Gulf Combined System Report", title_style))
     story.append(Paragraph("Thotec · eng.akasem@gmail.com", body_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=BRAND_BLUE, spaceAfter=10))
