@@ -70,31 +70,31 @@ if "run_calculation" not in st.session_state:
     st.session_state.run_calculation = False
 
 def _save_to_gsheets(row):
-    """Write a row to Google Sheets if credentials are configured."""
+    """Write a row to Google Sheets using gspread v6 service_account_from_dict."""
     try:
         import gspread
-        from google.oauth2.service_account import Credentials
         creds_dict = st.secrets.get("gcp_service_account", None)
         sheet_id   = st.secrets.get("LEADS_SHEET_ID", None)
         if not creds_dict or not sheet_id:
-            return False
-        scopes = ["https://spreadsheets.google.com/feeds",
-                  "https://www.googleapis.com/auth/drive"]
-        creds  = Credentials.from_service_account_info(dict(creds_dict), scopes=scopes)
-        client = gspread.authorize(creds)
+            return False, "Secrets not configured"
+        # gspread v6: service_account_from_dict handles auth automatically
+        client = gspread.service_account_from_dict(dict(creds_dict))
         sheet  = client.open_by_key(sheet_id).sheet1
-        if sheet.row_count < 2:
+        # Add header row if sheet is empty
+        if not sheet.get_all_values():
             sheet.append_row(["timestamp", "name", "email", "location", "application"])
         sheet.append_row(row)
-        return True
-    except Exception:
-        return False
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 
 def save_lead(name, email, location, application):
     """Save lead to Google Sheets (primary) and local CSV (fallback)."""
     row = [datetime.utcnow().isoformat(), name, email, location, application]
-    saved_remote = _save_to_gsheets(row)
+    ok, err = _save_to_gsheets(row)
+    if not ok and err:
+        st.warning(f"Google Sheets: {err}")
     # Always write local CSV as backup
     try:
         file_exists = os.path.isfile(LEADS_FILE)
