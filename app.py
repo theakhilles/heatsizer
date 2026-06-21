@@ -775,5 +775,4 @@ if st.session_state.get("run_calculation"):
         _show_gulf_results(result, climate, install_cost, existing_system, lead_name)
 
 else:
-    st.info("\U0001f448 Configure your system in the sidebar, then click **Calculate**.")
-e your system in the sidebar, then click **Calculate**.")
+    st.info("👈 Configure your system in the sidebar, then click **Calculate**.")
