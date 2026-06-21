@@ -243,9 +243,13 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
         "Body", parent=styles["Normal"],
         fontSize=10, leading=14, spaceAfter=6
     )
-    label_style = ParagraphStyle(
-        "Label", parent=styles["Normal"],
-        fontSize=9, textColor=BRAND_GRAY
+    hero_style = ParagraphStyle(
+        "Hero", parent=styles["Normal"],
+        textColor=BRAND_BLUE, fontSize=22, leading=26, spaceAfter=2, alignment=1
+    )
+    hero_label = ParagraphStyle(
+        "HeroLabel", parent=styles["Normal"],
+        textColor=BRAND_GRAY, fontSize=9, spaceAfter=10, alignment=1
     )
     disclaimer_style = ParagraphStyle(
         "Disc", parent=styles["Normal"],
@@ -253,143 +257,114 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
     )
 
     story = []
+    date_str = datetime.utcnow().strftime("%d %B %Y")
 
-    # Header
+    # ── Header ───────────────────────────────────────────────
     if os.path.exists("logo.png"):
         story.append(RLImage("logo.png", width=5*cm, height=2.5*cm))
         story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph("Thotec — Heat Pump Sizing Report", title_style))
+    story.append(Paragraph("Thotec — Heat Pump Savings Report", title_style))
     story.append(Paragraph("Thotec  ·  eng.akasem@gmail.com", sub_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=BRAND_BLUE, spaceAfter=10))
-
-    # Meta
-    date_str = datetime.utcnow().strftime("%d %B %Y")
-    story.append(Paragraph(f"<b>Prepared for:</b> {lead_name or 'Customer'}", body_style))
-    story.append(Paragraph(f"<b>Date:</b> {date_str}", body_style))
-    story.append(Paragraph(f"<b>Location:</b> {climate_key}", body_style))
-    story.append(Paragraph(f"<b>Application:</b> {application}", body_style))
+    story.append(Paragraph(f"<b>Prepared for:</b> {lead_name or 'Customer'}  ·  <b>Location:</b> {climate_key}  ·  <b>Date:</b> {date_str}", body_style))
     story.append(Spacer(1, 0.4*cm))
 
-    # System recommendation (no model name)
+    # ── Hero savings numbers ──────────────────────────────────
+    savings   = econ["annual_savings_eur"]
+    co2_sav   = econ["annual_co2_savings_kg"]
+    payback   = econ["payback_years"]
+
+    hero_data = [
+        [
+            Paragraph(f"<b>€{savings:,.0f}</b>", hero_style),
+            Paragraph(f"<b>{co2_sav:,.0f} kg</b>", hero_style),
+            Paragraph(f"<b>{payback} yrs</b>" if payback else "<b>n/a</b>", hero_style),
+        ],
+        [
+            Paragraph("Annual savings", hero_label),
+            Paragraph("CO₂ reduction / yr", hero_label),
+            Paragraph("Payback period", hero_label),
+        ],
+    ]
+    hero_table = Table(hero_data, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
+    hero_table.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), BRAND_BG),
+        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LINEAFTER",     (0, 0), (1, -1), 0.5, colors.lightgrey),
+        ("ROUNDEDCORNERS", [4]),
+    ]))
+    story.append(hero_table)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── Cost comparison bar (visual table) ───────────────────
+    story.append(Paragraph("Annual Running Cost Comparison", sub_style))
+    cur_cost = econ["annual_existing_cost_eur"]
+    hp_cost  = econ["annual_hp_running_cost_eur"]
+    max_cost = max(cur_cost, hp_cost, 1)
+    bar_w    = 8*cm
+    cur_bar  = max(cur_cost / max_cost * bar_w, 0.2*cm)
+    hp_bar   = max(hp_cost  / max_cost * bar_w, 0.2*cm)
+
+    bar_data = [
+        [Paragraph(f"<b>{existing_system}</b>", body_style),
+         Table([[""]], colWidths=[cur_bar], rowHeights=[0.6*cm],
+               style=[("BACKGROUND",(0,0),(-1,-1),BRAND_GOLD)]),
+         Paragraph(f"<b>€{cur_cost:,.0f}/yr</b>", body_style)],
+        [Paragraph("<b>Heat pump</b>", body_style),
+         Table([[""]], colWidths=[hp_bar], rowHeights=[0.6*cm],
+               style=[("BACKGROUND",(0,0),(-1,-1),BRAND_BLUE)]),
+         Paragraph(f"<b>€{hp_cost:,.0f}/yr</b>", body_style)],
+    ]
+    bar_table = Table(bar_data, colWidths=[4*cm, bar_w + 0.5*cm, 3*cm])
+    bar_table.setStyle(TableStyle([
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING",   (0, 0), (0, -1), 0),
+    ]))
+    story.append(bar_table)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── System info (brief) ───────────────────────────────────
     story.append(Paragraph("Recommended System", sub_style))
     cap_key  = "recommended_capacity_kw" if "recommended_capacity_kw" in result else "recommended_volume_l"
     cap_unit = "kW" if cap_key == "recommended_capacity_kw" else "L"
     cap_val  = result[cap_key]
-
-    perf_label = ""
-    perf_val   = ""
-    if "scop_estimate" in result:
-        perf_label, perf_val = "Estimated SCOP", str(result["scop_estimate"])
-    elif "cop_estimate" in result:
-        perf_label, perf_val = "Estimated COP", str(result["cop_estimate"])
-    elif "eer_estimate" in result:
-        perf_label, perf_val = "Estimated EER (cooling)", str(result["eer_estimate"])
-
-    rec_data = [
-        ["R290 Air-to-Water Heat Pump", f"{cap_val} {cap_unit} capacity"],
-        [perf_label, perf_val],
-        ["Indicative equipment price (FOB)", f"€{result['fob_eur']:,}"],
-    ]
-    if "buffer_tank_l" in result:
-        rec_data.append(["Recommended buffer tank", f"{result['buffer_tank_l']} L"])
-
-    rec_table = Table(rec_data, colWidths=[9*cm, 8*cm])
-    rec_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), BRAND_BG),
-        ("BACKGROUND", (0, 1), (-1, 1), colors.white),
-        ("BACKGROUND", (0, 2), (-1, 2), BRAND_BG),
-        ("BACKGROUND", (0, 3), (-1, 3), colors.white),
-        ("FONTNAME",   (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE",   (0, 0), (-1, -1), 10),
-        ("ROWBACKGROUND", (0, 0), (-1, -1), [BRAND_BG, colors.white]),
-        ("GRID",       (0, 0), (-1, -1), 0.4, colors.lightgrey),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    story.append(rec_table)
-    story.append(Spacer(1, 0.4*cm))
-
-    # Energy section
-    story.append(Paragraph("Energy Summary", sub_style))
-    thermal = result.get("annual_heat_demand_kwh") or result.get("annual_cool_demand_kwh", 0)
-    energy_data = [
-        ["Annual thermal demand",    f"{thermal:,.0f} kWh"],
-        ["Annual electricity use",   f"{result['annual_electricity_kwh']:,.0f} kWh"],
-    ]
-    if "design_load_kw" in result:
-        energy_data.insert(0, ["Design load", f"{result['design_load_kw']} kW"])
-
-    e_table = Table(energy_data, colWidths=[9*cm, 8*cm])
-    e_table.setStyle(TableStyle([
-        ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 10),
-        ("GRID",          (0, 0), (-1, -1), 0.4, colors.lightgrey),
-        ("ROWBACKGROUND", (0, 0), (-1, -1), [BRAND_BG, colors.white]),
-        ("TOPPADDING",    (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-    ]))
-    story.append(e_table)
-    story.append(Spacer(1, 0.4*cm))
-
-    # Economics section
-    story.append(Paragraph("Economic Analysis", sub_style))
-    savings     = econ["annual_savings_eur"]
-    savings_str = f"€{savings:,.0f} / yr saved" if savings >= 0 else f"€{abs(savings):,.0f} / yr extra cost"
-    payback     = f"{econ['payback_years']} years" if econ["payback_years"] else "n/a"
-    co2_sav     = econ["annual_co2_savings_kg"]
-    co2_str     = f"{co2_sav:,.0f} kg/yr reduction" if co2_sav >= 0 else f"{abs(co2_sav):,.0f} kg/yr increase"
-
-    econ_data = [
-        ["Heat pump running cost",       f"€{econ['annual_hp_running_cost_eur']:,.0f} / yr"],
-        [f"{existing_system} cost",      f"€{econ['annual_existing_cost_eur']:,.0f} / yr"],
-        ["Annual savings vs. existing",  savings_str],
-        ["Simple payback period",        payback],
-        ["Installed cost (estimate)",    f"€{install_cost:,}"],
-        ["CO₂ impact vs. existing",      co2_str],
-    ]
-    eco_table = Table(econ_data, colWidths=[9*cm, 8*cm])
-    eco_table.setStyle(TableStyle([
-        ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 10),
-        ("GRID",          (0, 0), (-1, -1), 0.4, colors.lightgrey),
-        ("ROWBACKGROUND", (0, 0), (-1, -1), [BRAND_BG, colors.white]),
-        ("TOPPADDING",    (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-    ]))
-    story.append(eco_table)
+    story.append(Paragraph(
+        f"R290 air-source heat pump · <b>{cap_val} {cap_unit}</b> capacity · "
+        f"Application: {application}",
+        body_style
+    ))
+    if install_cost:
+        story.append(Paragraph(f"Estimated installed cost: <b>€{install_cost:,}</b>", body_style))
     story.append(Spacer(1, 0.5*cm))
 
-    # Next steps
+    # ── Next steps ────────────────────────────────────────────
     story.append(HRFlowable(width="100%", thickness=0.5, color=BRAND_LIGHT, spaceAfter=8))
-    story.append(Paragraph("Next Steps", sub_style))
+    story.append(Paragraph("Get a Detailed Quote", sub_style))
     story.append(Paragraph(
-        "This report is a planning-grade estimate suitable for budgeting and feasibility. "
-        "To proceed, contact Thotec for:",
+        "This is a planning-grade estimate. Contact Thotec for a full engineering proposal:",
         body_style
     ))
     for item in [
-        "Full EN 12831 heat load calculation",
-        "Hydraulic design and equipment specification",
-        "Sourcing, supply, and commissioning quote",
-        "OpenModelica system simulation for complex projects",
+        "Detailed EN 12831 heat load calculation",
+        "Equipment sourcing & supply from certified manufacturers",
+        "Installation coordination and commissioning",
+        "Project simulation and performance guarantee",
     ]:
         story.append(Paragraph(f"• {item}", body_style))
-
     story.append(Spacer(1, 0.3*cm))
     story.append(Paragraph(
-        "<b>Contact:</b> Ahmed Abouelkasem  ·  Thotec  ·  eng.akasem@gmail.com",
+        "<b>Ahmed Abouelkasem  ·  Thotec  ·  eng.akasem@gmail.com</b>",
         body_style
     ))
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
     story.append(Paragraph(
-        f"Generated by Thotec Sizer on {date_str}. All results are planning-grade estimates based on "
-        "degree-day methods and representative equipment data. Not a substitute for a full engineering "
-        "calculation per EN 12831 or a detailed simulation. Thotec accepts no liability for "
-        "decisions made solely on the basis of this report.",
+        f"Generated by Thotec Sizer on {date_str}. Planning-grade estimates based on degree-day "
+        "methods and representative equipment data. Not a substitute for a full EN 12831 calculation.",
         disclaimer_style
     ))
 
@@ -397,63 +372,102 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
     buf.seek(0)
     return buf
 
+# ── Standard results display (savings-first) ────────────────
+def _show_standard_results(result, econ, application, existing_system,
+                           install_cost, lead_name, climate, location):
+    name_tag = f", {lead_name}" if lead_name else ""
+    st.success(f"✅ Your results are ready{name_tag}!")
+
+    # System line
+    if "recommended_capacity_kw" in result:
+        sys_desc = f"Air-source heat pump · **{result['recommended_capacity_kw']} kW** capacity"
+    else:
+        sys_desc = f"Heat pump water heater · **{result['recommended_volume_l']} L** tank"
+    st.markdown(f"🔧 **Recommended system:** {sys_desc}")
+    st.divider()
+
+    # Hero savings metrics
+    savings = econ["annual_savings_eur"]
+    co2_sav = econ["annual_co2_savings_kg"]
+    payback = econ["payback_years"]
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("💰 Annual savings",  f"€{savings:,.0f}/yr")
+    c2.metric("⚡ HP electricity",  f"{result['annual_electricity_kwh']:,} kWh/yr")
+    c3.metric("🌱 CO₂ reduction",   f"{co2_sav:,.0f} kg/yr")
+    c4.metric("📅 Payback period",  f"{payback} yrs" if payback else "n/a")
+
+    # Cost comparison chart
+    cur = econ["annual_existing_cost_eur"]
+    hp  = econ["annual_hp_running_cost_eur"]
+    fig = go.Figure(data=[go.Bar(
+        x=[f"Current ({existing_system})", "With Heat Pump"],
+        y=[cur, hp],
+        marker_color=[BRAND_GOLD.hexval() if hasattr(BRAND_GOLD, "hexval") else "#C49A2A", "#1A2744"],
+        text=[f"€{cur:,.0f}/yr", f"€{hp:,.0f}/yr"],
+        textposition="outside",
+        width=0.4,
+    )])
+    fig.update_layout(
+        title="Annual running cost",
+        yaxis_title="€ / year",
+        height=300,
+        margin=dict(t=40, b=20, l=20, r=20),
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_traces(marker_color=["#C49A2A", "#1A2744"])
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    pdf = build_pdf(result, econ, location, application, existing_system, install_cost, lead_name)
+    fname = application.split("(")[0].strip().replace(" ", "_")
+    st.download_button("📄 Download Report (PDF)", pdf,
+                       f"Thotec_{fname}_Report.pdf", "application/pdf")
+
+
 # ── Gulf Combined System results ─────────────────────────────
 def _show_gulf_results(result, climate, install_cost, existing_system, lead_name):
     name_greeting = f", {lead_name}" if lead_name else ""
-    st.success(f"✅ Gulf Combined System results{name_greeting}!")
 
-    # ── Key metrics row ──────────────────────────────────────────────────────
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Cooling HP capacity", f"{result['recommended_capacity_kw']} kW")
-    c2.metric("EER day / night", f"{result['eer_day']} / {result['eer_night']}")
-    c3.metric("DHW heat recovery", f"{result['hr_fraction']}% of demand")
-    c4.metric("Annual PV yield", f"{result['annual_pv_yield_kwh']:,} kWh")
-
-    st.divider()
-
-    # ── System savings breakdown ─────────────────────────────────────────────
-    st.subheader("Annual Energy & Savings Summary")
-    col_a, col_b, col_c = st.columns(3)
-
-    with col_a:
-        st.markdown("**🧊 Cooling + TES**")
-        st.write(f"Annual cooling demand: **{result['annual_cool_demand_kwh']:,} kWh**")
-        st.write(f"TES night-charge savings: **{result['tes_savings_kwh']:,} kWh**")
-        st.write(f"EER improvement (night vs day): **{result['eer_night']} vs {result['eer_day']}**")
-
-    with col_b:
-        st.markdown("**♻️ DHW Heat Recovery**")
-        st.write(f"Annual DHW demand: **{result['annual_dhw_demand_kwh']:,} kWh**")
-        st.write(f"Recovered from condenser: **{result['annual_hr_recovered_kwh']:,} kWh**")
-        st.write(f"DHW coverage by recovery: **{result['hr_fraction']}%**")
-
-    with col_c:
-        st.markdown("**☀️ PV Self-Consumption**")
-        st.write(f"PV area: **{result['pv_area_m2']} m²**")
-        st.write(f"Annual PV yield: **{result['annual_pv_yield_kwh']:,} kWh**")
-        st.write(f"Net HP electricity: **{result['annual_electricity_kwh']:,} kWh**")
-
-    st.divider()
-
-    # ── vs Baseline comparison ───────────────────────────────────────────────
-    st.subheader("Combined System vs. Baseline (Split-AC + Electric Water Heater)")
-    elec_price = climate["electricity_price"]
-    cost_combined = result['annual_electricity_kwh'] * elec_price
-    cost_baseline = result['annual_baseline_kwh'] * elec_price
+    # ── Compute savings ──────────────────────────────────────────────────────
+    elec_price    = climate["electricity_price"]
+    cost_combined = result["annual_electricity_kwh"] * elec_price
+    cost_baseline = result["annual_baseline_kwh"] * elec_price
     savings_eur   = cost_baseline - cost_combined
-    co2_combined  = result['annual_electricity_kwh'] * climate["grid_co2_kg_per_kwh"]
-    co2_baseline  = result['annual_baseline_kwh'] * climate["grid_co2_kg_per_kwh"]
+    co2_combined  = result["annual_electricity_kwh"] * climate["grid_co2_kg_per_kwh"]
+    co2_baseline  = result["annual_baseline_kwh"] * climate["grid_co2_kg_per_kwh"]
     co2_savings   = co2_baseline - co2_combined
     payback       = round(install_cost / savings_eur, 1) if savings_eur > 0 and install_cost > 0 else None
 
+    st.success(f"✅ Your Gulf Combined System results{name_greeting}!")
+    st.markdown(f"🔧 **Recommended system:** Air-source cooling HP · **{result['recommended_capacity_kw']} kW** · TES {result['tes_volume_l']} L · PV {result['pv_area_m2']} m²")
+    st.divider()
+
+    # ── Hero savings metrics ─────────────────────────────────────────────────
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Combined system cost", f"€{cost_combined:,.0f}/yr")
-    m2.metric("Baseline cost", f"€{cost_baseline:,.0f}/yr")
-    m3.metric("Annual savings", f"€{savings_eur:,.0f}/yr", delta=f"€{savings_eur:,.0f}")
-    m4.metric("Simple payback", f"{payback} yrs" if payback else "n/a")
+    m1.metric("💰 Annual savings",   f"€{savings_eur:,.0f}/yr")
+    m2.metric("⚡ Energy saved",     f"{result['annual_savings_kwh']:,} kWh/yr")
+    m3.metric("🌱 CO₂ reduction",    f"{co2_savings:,.0f} kg/yr")
+    m4.metric("📅 Payback period",   f"{payback} yrs" if payback else "n/a")
 
-    st.write(f"CO₂ reduction vs baseline: **:green[{co2_savings:,.0f} kg/yr]**")
-
+    # ── Cost comparison chart ────────────────────────────────────────────────
+    fig_cmp = go.Figure(data=[go.Bar(
+        x=["Current (Split-AC + Elec. DHW)", "Thotec Combined System"],
+        y=[cost_baseline, cost_combined],
+        marker_color=["#C49A2A", "#1A2744"],
+        text=[f"€{cost_baseline:,.0f}/yr", f"€{cost_combined:,.0f}/yr"],
+        textposition="outside",
+        width=0.4,
+    )])
+    fig_cmp.update_layout(
+        title="Annual running cost",
+        yaxis_title="€ / year",
+        height=300,
+        margin=dict(t=40, b=20, l=20, r=20),
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig_cmp, use_container_width=True)
     st.divider()
 
     # ── Monthly electricity chart ────────────────────────────────────────────
@@ -649,83 +663,26 @@ if st.session_state.get("run_calculation"):
     if application == "Space Heating":
         result = size_space_heating(location, floor_area, insulation, flow_temp)
         econ   = economics(result, climate, install_cost, existing_system)
-        name_tag = f", {lead_name}" if lead_name else ""
-        st.success(f"\u2705 Space Heating results{name_tag}!")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Design load",        f"{result['design_load_kw']} kW")
-        c2.metric("SCOP estimate",       f"{result['scop_estimate']}")
-        c3.metric("Annual heat demand",  f"{result['annual_heat_demand_kwh']:,} kWh")
-        c4.metric("Annual electricity",  f"{result['annual_electricity_kwh']:,} kWh")
-        st.divider()
-        ca, cb, cc, cd = st.columns(4)
-        ca.metric("Running cost",        f"\u20ac{econ['annual_hp_running_cost_eur']:,.0f}/yr")
-        cb.metric("Annual savings",      f"\u20ac{econ['annual_savings_eur']:,.0f}/yr")
-        cc.metric("CO\u2082 savings",   f"{econ['annual_co2_savings_kg']:,.0f} kg/yr")
-        cd.metric("Payback",             f"{econ['payback_years']} yrs" if econ['payback_years'] else "n/a")
-        st.info(f"Recommended buffer tank: **{result['buffer_tank_l']} L**")
-        pdf = build_pdf(result, econ, location, application, existing_system, install_cost, lead_name)
-        st.download_button("\U0001f4c4 Download Report (PDF)", pdf,
-                           "Thotec_SpaceHeating_Report.pdf", "application/pdf")
+        _show_standard_results(result, econ, application, existing_system,
+                               install_cost, lead_name, climate, location)
 
     elif application == "Domestic Hot Water (DHW)":
         result = size_dhw(location, num_persons)
         econ   = economics(result, climate, install_cost, existing_system)
-        name_tag = f", {lead_name}" if lead_name else ""
-        st.success(f"\u2705 DHW results{name_tag}!")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Daily demand",        f"{result['daily_demand_l']} L/day")
-        c2.metric("COP estimate",        f"{result['cop_estimate']}")
-        c3.metric("Annual heat demand",  f"{result['annual_heat_demand_kwh']:,} kWh")
-        c4.metric("Annual electricity",  f"{result['annual_electricity_kwh']:,} kWh")
-        st.divider()
-        ca, cb, cc, cd = st.columns(4)
-        ca.metric("Running cost",        f"\u20ac{econ['annual_hp_running_cost_eur']:,.0f}/yr")
-        cb.metric("Annual savings",      f"\u20ac{econ['annual_savings_eur']:,.0f}/yr")
-        cc.metric("CO\u2082 savings",   f"{econ['annual_co2_savings_kg']:,.0f} kg/yr")
-        cd.metric("Payback",             f"{econ['payback_years']} yrs" if econ['payback_years'] else "n/a")
-        pdf = build_pdf(result, econ, location, application, existing_system, install_cost, lead_name)
-        st.download_button("\U0001f4c4 Download Report (PDF)", pdf,
-                           "Thotec_DHW_Report.pdf", "application/pdf")
+        _show_standard_results(result, econ, application, existing_system,
+                               install_cost, lead_name, climate, location)
 
     elif application == "Pool Heating":
         result = size_pool(location, pool_area, pool_type, operating_months)
         econ   = economics(result, climate, install_cost, existing_system)
-        name_tag = f", {lead_name}" if lead_name else ""
-        st.success(f"\u2705 Pool Heating results{name_tag}!")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Design load",        f"{result['design_load_kw']} kW")
-        c2.metric("COP estimate",       f"{result['cop_estimate']}")
-        c3.metric("Annual heat demand", f"{result['annual_heat_demand_kwh']:,} kWh")
-        c4.metric("Annual electricity", f"{result['annual_electricity_kwh']:,} kWh")
-        st.divider()
-        ca, cb, cc, cd = st.columns(4)
-        ca.metric("Running cost",       f"\u20ac{econ['annual_hp_running_cost_eur']:,.0f}/yr")
-        cb.metric("Annual savings",     f"\u20ac{econ['annual_savings_eur']:,.0f}/yr")
-        cc.metric("CO\u2082 savings",  f"{econ['annual_co2_savings_kg']:,.0f} kg/yr")
-        cd.metric("Payback",            f"{econ['payback_years']} yrs" if econ['payback_years'] else "n/a")
-        pdf = build_pdf(result, econ, location, application, existing_system, install_cost, lead_name)
-        st.download_button("\U0001f4c4 Download Report (PDF)", pdf,
-                           "Thotec_Pool_Report.pdf", "application/pdf")
+        _show_standard_results(result, econ, application, existing_system,
+                               install_cost, lead_name, climate, location)
 
     elif application == "Space Cooling":
         result = size_cooling(location, floor_area, cooling_class)
         econ   = economics(result, climate, install_cost, existing_system)
-        name_tag = f", {lead_name}" if lead_name else ""
-        st.success(f"\u2705 Space Cooling results{name_tag}!")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Design load",         f"{result['design_load_kw']} kW")
-        c2.metric("EER estimate",        f"{result['eer_estimate']}")
-        c3.metric("Annual cool demand",  f"{result['annual_cool_demand_kwh']:,} kWh")
-        c4.metric("Annual electricity",  f"{result['annual_electricity_kwh']:,} kWh")
-        st.divider()
-        ca, cb, cc, cd = st.columns(4)
-        ca.metric("Running cost",        f"\u20ac{econ['annual_hp_running_cost_eur']:,.0f}/yr")
-        cb.metric("Annual savings",      f"\u20ac{econ['annual_savings_eur']:,.0f}/yr")
-        cc.metric("CO\u2082 savings",   f"{econ['annual_co2_savings_kg']:,.0f} kg/yr")
-        cd.metric("Payback",             f"{econ['payback_years']} yrs" if econ['payback_years'] else "n/a")
-        pdf = build_pdf(result, econ, location, application, existing_system, install_cost, lead_name)
-        st.download_button("\U0001f4c4 Download Report (PDF)", pdf,
-                           "Thotec_Cooling_Report.pdf", "application/pdf")
+        _show_standard_results(result, econ, application, existing_system,
+                               install_cost, lead_name, climate, location)
 
     elif application == "\U0001f30d Gulf Combined System (Cooling + TES + DHW-HR + PV)":
         result = size_gulf_combined(
