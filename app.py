@@ -78,22 +78,20 @@ def _save_to_gsheets(row):
         if not creds_dict or not sheet_id:
             return False, "Secrets not configured"
         # gspread v6: service_account_from_dict handles auth automatically
-        import re as _re
         creds_info = dict(creds_dict)
         # Rebuild PEM key robustly — handles all copy-paste variants
         key = creds_info.get("private_key", "")
-        # Step 1: convert any literal \n (two chars) to real newline
+        # Convert literal \n to real newline (common TOML paste issue)
         key = key.replace("\\n", "\n").replace("\r", "")
-        # Step 2: extract header / body / footer and reformat
-        m = _re.match(
-            r"(-{5}BEGIN [^-]+-{5})(.*?)(-{5}END [^-]+-{5})",
-            key, _re.DOTALL
-        )
-        if m:
-            header, body, footer = m.group(1), m.group(2), m.group(3)
-            body = _re.sub(r"\s+", "", body)          # strip all whitespace
-            lines = [body[i:i+64] for i in range(0, len(body), 64)]
-            key = header + "\n" + "\n".join(lines) + "\n" + footer + "\n"
+        # Rebuild proper PEM structure
+        if "-----BEGIN" in key:
+            lines = [l.strip() for l in key.replace("\\n", "\n").split("\n") if l.strip()]
+            if lines and lines[0].startswith("-----BEGIN") and lines[-1].startswith("-----END"):
+                header = lines[0]
+                footer = lines[-1]
+                body = "".join(lines[1:-1])
+                wrapped = "\n".join(body[i:i+64] for i in range(0, len(body), 64))
+                key = header + "\n" + wrapped + "\n" + footer + "\n"
         creds_info["private_key"] = key
         client = gspread.service_account_from_dict(creds_info)
         sheet  = client.open_by_key(sheet_id).sheet1
