@@ -261,7 +261,7 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
 
     # ── Header ───────────────────────────────────────────────
     if os.path.exists("logo.png"):
-        story.append(RLImage("logo.png", width=5*cm, height=2.5*cm))
+        story.append(RLImage("logo.png", width=2.5*cm, height=2.5*cm))
         story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph("Thotec — Heat Pump Savings Report", title_style))
     story.append(Paragraph("Thotec  ·  eng.akasem@gmail.com", sub_style))
@@ -575,7 +575,7 @@ def build_gulf_pdf(result, climate, cost_combined, cost_baseline,
 
     story = []
     if os.path.exists("logo.png"):
-        story.append(RLImage("logo.png", width=5*cm, height=2.5*cm))
+        story.append(RLImage("logo.png", width=2.5*cm, height=2.5*cm))
         story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph("Thotec — Gulf Combined System Report", title_style))
     story.append(Paragraph("Thotec · eng.akasem@gmail.com", body_style))
