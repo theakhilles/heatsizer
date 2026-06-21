@@ -67,7 +67,7 @@ st.markdown("""
 _col_logo, _col_title = st.columns([1, 5])
 with _col_logo:
     if os.path.exists("logo.png"):
-        st.image("logo.png", width=140)
+        st.image("logo.png", width=220)
 with _col_title:
     st.title("Thotec Sizer")
     st.caption("Heat pump sizing & feasibility — Europe & Gulf")
@@ -783,7 +783,7 @@ if st.session_state.get("run_calculation"):
         _show_standard_results(result, econ, application, existing_system,
                                install_cost, lead_name, climate, location)
 
-    elif application == "\U0001f30d Gulf Combined System (Cooling + TES + DHW-HR + PV)":
+    elif application == "Gulf Combined System (Cooling + TES + DHW-HR + PV)":
         result = size_gulf_combined(
             location, floor_area, cooling_class, num_persons,
             pv_area_m2=pv_area, tes_volume_l=tes_volume,
