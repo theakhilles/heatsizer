@@ -402,7 +402,7 @@ def _show_standard_results(result, econ, application, existing_system,
     fig = go.Figure(data=[go.Bar(
         x=[f"Current ({existing_system})", "With Heat Pump"],
         y=[cur, hp],
-        marker_color=[BRAND_GOLD.hexval() if hasattr(BRAND_GOLD, "hexval") else "#C49A2A", "#1A2744"],
+        marker_color=["#C49A2A", "#1A2744"],
         text=[f"€{cur:,.0f}/yr", f"€{hp:,.0f}/yr"],
         textposition="outside",
         width=0.4,
@@ -415,7 +415,6 @@ def _show_standard_results(result, econ, application, existing_system,
         showlegend=False,
         plot_bgcolor="rgba(0,0,0,0)",
     )
-    fig.update_traces(marker_color=["#C49A2A", "#1A2744"])
     st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
