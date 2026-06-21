@@ -46,6 +46,23 @@ LEADS_FILE = "leads.csv"
 # ────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Thotec Sizer", page_icon="T", layout="wide")
 
+# ── Material Symbols (Google) + section header styles ────────
+st.markdown("""
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,300,0,0"/>
+<style>
+.ms{font-family:'Material Symbols Outlined';font-size:1.15em;
+    vertical-align:-0.2em;color:#1A2744;font-style:normal;
+    font-weight:300;letter-spacing:normal;line-height:1;}
+.t-hdr{font-size:.95rem;font-weight:700;color:#1A2744;
+       margin:.5rem 0 .25rem;display:flex;align-items:center;gap:.4em;}
+.t-sub{font-size:.8rem;font-weight:600;color:#595959;text-transform:uppercase;
+       letter-spacing:.06em;margin:.75rem 0 .1rem;
+       display:flex;align-items:center;gap:.35em;}
+.t-sys{font-size:1rem;font-weight:600;color:#1A2744;
+       display:flex;align-items:center;gap:.4em;margin:.2rem 0;}
+</style>""", unsafe_allow_html=True)
+
 # ── Header ───────────────────────────────────────────────────
 _col_logo, _col_title = st.columns([1, 5])
 with _col_logo:
@@ -125,7 +142,7 @@ def save_lead(name, email, location, application):
 
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
-    st.header("Location & Application")
+    st.markdown('<p class="t-hdr"><span class="ms">location_on</span> Location &amp; Application</p>', unsafe_allow_html=True)
     location = st.selectbox("Location", list(CLIMATES.keys()), index=0)
     climate   = CLIMATES[location]
 
@@ -136,7 +153,7 @@ with st.sidebar:
     )
 
     st.divider()
-    st.header("Building & System Details")
+    st.markdown('<p class="t-hdr"><span class="ms">home_work</span> Building &amp; System Details</p>', unsafe_allow_html=True)
 
     if application == "Space Heating":
         floor_area = st.number_input("Heated floor area (m²)", min_value=20, max_value=2000, value=150, step=10)
@@ -156,24 +173,24 @@ with st.sidebar:
         cooling_class = st.selectbox("Building envelope quality", list(COOLING_LOAD_CLASSES.keys()), index=1)
 
     elif application == "Gulf Combined System (Cooling + TES + DHW-HR + PV)":
-        st.markdown("##### Building")
+        st.markdown('<p class="t-sub"><span class="ms">apartment</span> Building</p>', unsafe_allow_html=True)
         floor_area    = st.number_input("Cooled floor area (m²)", min_value=20, max_value=5000, value=300, step=10)
         cooling_class = st.selectbox("Building envelope quality", list(COOLING_LOAD_CLASSES.keys()), index=1)
         num_persons   = st.number_input("Occupants (for DHW)", min_value=1, max_value=100, value=6, step=1)
-        st.markdown("##### PV System")
+        st.markdown('<p class="t-sub"><span class="ms">solar_power</span> PV System</p>', unsafe_allow_html=True)
         pv_area       = st.number_input("PV panel area (m²)", min_value=0, max_value=2000, value=40, step=5,
                                          help="Roof or ground-mounted. ~5 m² per kWp for standard panels.")
-        st.markdown("##### Thermal Energy Storage (TES)")
+        st.markdown('<p class="t-sub"><span class="ms">water</span> Thermal Energy Storage (TES)</p>', unsafe_allow_html=True)
         tes_volume    = st.number_input("TES tank volume (L)", min_value=0, max_value=50000, value=1000, step=100,
                                          help="Chilled water tank. Rule of thumb: 20–40 L per kW of cooling capacity.")
         tes_fraction  = st.slider("Night-charge fraction of cooling load", 0.1, 0.8, 0.45, 0.05,
                                    help="Fraction of daily cooling stored at night (lower ambient → higher EER).")
-        st.markdown("##### DHW Heat Recovery")
+        st.markdown('<p class="t-sub"><span class="ms">recycling</span> DHW Heat Recovery</p>', unsafe_allow_html=True)
         eta_hr        = st.slider("Heat recovery effectiveness", 0.3, 0.9, 0.65, 0.05,
                                    help="Fraction of condenser heat rejection recovered for DHW. 0.65 = dedicated HX.")
 
     st.divider()
-    st.header("Economics")
+    st.markdown('<p class="t-hdr"><span class="ms">payments</span> Economics</p>', unsafe_allow_html=True)
     existing_system = st.selectbox(
         "Current / alternative system",
         ["Gas boiler", "Electric resistance", "None (new build)"],
@@ -212,7 +229,7 @@ def lead_gate(location, application):
     if st.session_state.lead_captured:
         return True
 
-    st.subheader("Get your free sizing report")
+    st.markdown('<p class="t-hdr" style="font-size:1.2rem"><span class="ms">assignment</span> Get your free sizing report</p>', unsafe_allow_html=True)
     st.markdown(
         "Enter your name and email to see the full recommendation and download a PDF report. "
         "We'll also follow up with a personalised quote — no obligation."
@@ -395,7 +412,7 @@ def _show_standard_results(result, econ, application, existing_system,
         sys_desc = f"Air-source heat pump · **{result['recommended_capacity_kw']} kW** capacity"
     else:
         sys_desc = f"Heat pump water heater · **{result['recommended_volume_l']} L** tank"
-    st.markdown(f"**Recommended system:** {sys_desc}")
+    st.markdown(f'<p class="t-sys"><span class="ms">tune</span> {sys_desc}</p>', unsafe_allow_html=True)
     st.divider()
 
     # Hero savings metrics
@@ -493,7 +510,7 @@ def _show_gulf_results(result, climate, install_cost, existing_system, lead_name
     payback       = round(install_cost / savings_eur, 1) if savings_eur > 0 and install_cost > 0 else None
 
     st.success(f"Gulf Combined System results{name_greeting}")
-    st.markdown(f"**Recommended system:** Air-source cooling HP · **{result['recommended_capacity_kw']} kW** · TES {result['tes_volume_l']} L · PV {result['pv_area_m2']} m²")
+    st.markdown(f'<p class="t-sys"><span class="ms">tune</span> Air-source cooling HP &nbsp;·&nbsp; <b>{result["recommended_capacity_kw"]} kW</b> &nbsp;·&nbsp; TES {result["tes_volume_l"]} L &nbsp;·&nbsp; PV {result["pv_area_m2"]} m²</p>', unsafe_allow_html=True)
     st.divider()
 
     # ── Hero savings metrics ─────────────────────────────────────────────────
