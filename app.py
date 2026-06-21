@@ -93,8 +93,10 @@ def save_lead(name, email, location, application):
     """Save lead to Google Sheets (primary) and local CSV (fallback)."""
     row = [datetime.utcnow().isoformat(), name, email, location, application]
     ok, err = _save_to_gsheets(row)
-    if not ok and err:
-        st.warning(f"Google Sheets: {err}")
+    if not ok:
+        st.session_state["_gsheets_err"] = err or "Unknown error"
+    else:
+        st.session_state.pop("_gsheets_err", None)
     # Always write local CSV as backup
     try:
         file_exists = os.path.isfile(LEADS_FILE)
@@ -621,6 +623,10 @@ if not lead_gate(location, application):
     st.stop()
 
 lead_name = st.session_state.get("lead_name", "")
+
+# Show Google Sheets error if any (persists across rerun)
+if "_gsheets_err" in st.session_state:
+    st.warning(f"⚠️ Google Sheets error: {st.session_state['_gsheets_err']}")
 
 if st.session_state.get("run_calculation"):
     st.session_state.run_calculation = False
