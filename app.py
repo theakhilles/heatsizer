@@ -44,7 +44,7 @@ BRAND_BG     = colors.HexColor("#F5F0E8")
 LEADS_FILE = "leads.csv"
 
 # ────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Thotec Sizer", page_icon="🌡️", layout="wide")
+st.set_page_config(page_title="Thotec Sizer", page_icon="T", layout="wide")
 
 # ── Header ───────────────────────────────────────────────────
 _col_logo, _col_title = st.columns([1, 5])
@@ -125,18 +125,18 @@ def save_lead(name, email, location, application):
 
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
-    st.header("📍 Location & Application")
+    st.header("Location & Application")
     location = st.selectbox("Location", list(CLIMATES.keys()), index=0)
     climate   = CLIMATES[location]
 
     application = st.selectbox(
         "Application",
         ["Space Heating", "Domestic Hot Water (DHW)", "Pool Heating", "Space Cooling",
-         "🌍 Gulf Combined System (Cooling + TES + DHW-HR + PV)"],
+         "Gulf Combined System (Cooling + TES + DHW-HR + PV)"],
     )
 
     st.divider()
-    st.header("🏠 Building / System Details")
+    st.header("Building & System Details")
 
     if application == "Space Heating":
         floor_area = st.number_input("Heated floor area (m²)", min_value=20, max_value=2000, value=150, step=10)
@@ -155,25 +155,25 @@ with st.sidebar:
         floor_area    = st.number_input("Cooled floor area (m²)", min_value=20, max_value=2000, value=200, step=10)
         cooling_class = st.selectbox("Building envelope quality", list(COOLING_LOAD_CLASSES.keys()), index=1)
 
-    elif application == "🌍 Gulf Combined System (Cooling + TES + DHW-HR + PV)":
-        st.markdown("##### 🏢 Building")
+    elif application == "Gulf Combined System (Cooling + TES + DHW-HR + PV)":
+        st.markdown("##### Building")
         floor_area    = st.number_input("Cooled floor area (m²)", min_value=20, max_value=5000, value=300, step=10)
         cooling_class = st.selectbox("Building envelope quality", list(COOLING_LOAD_CLASSES.keys()), index=1)
         num_persons   = st.number_input("Occupants (for DHW)", min_value=1, max_value=100, value=6, step=1)
-        st.markdown("##### ☀️ PV System")
+        st.markdown("##### PV System")
         pv_area       = st.number_input("PV panel area (m²)", min_value=0, max_value=2000, value=40, step=5,
                                          help="Roof or ground-mounted. ~5 m² per kWp for standard panels.")
-        st.markdown("##### 🧊 Thermal Energy Storage (TES)")
+        st.markdown("##### Thermal Energy Storage (TES)")
         tes_volume    = st.number_input("TES tank volume (L)", min_value=0, max_value=50000, value=1000, step=100,
                                          help="Chilled water tank. Rule of thumb: 20–40 L per kW of cooling capacity.")
         tes_fraction  = st.slider("Night-charge fraction of cooling load", 0.1, 0.8, 0.45, 0.05,
                                    help="Fraction of daily cooling stored at night (lower ambient → higher EER).")
-        st.markdown("##### ♻️ DHW Heat Recovery")
+        st.markdown("##### DHW Heat Recovery")
         eta_hr        = st.slider("Heat recovery effectiveness", 0.3, 0.9, 0.65, 0.05,
                                    help="Fraction of condenser heat rejection recovered for DHW. 0.65 = dedicated HX.")
 
     st.divider()
-    st.header("💰 Economics")
+    st.header("Economics")
     existing_system = st.selectbox(
         "Current / alternative system",
         ["Gas boiler", "Electric resistance", "None (new build)"],
@@ -198,7 +198,7 @@ with st.sidebar:
             correct = st.secrets.get("ADMIN_PASSWORD", "thotec-admin")
             if pwd == correct:
                 st.session_state.admin_mode = True
-                st.success("✅ Admin mode active")
+                st.success("Admin mode active")
             else:
                 st.session_state.admin_mode = False
                 st.error("Wrong password")
@@ -212,7 +212,7 @@ def lead_gate(location, application):
     if st.session_state.lead_captured:
         return True
 
-    st.subheader("📬 Get your free sizing report")
+    st.subheader("Get your free sizing report")
     st.markdown(
         "Enter your name and email to see the full recommendation and download a PDF report. "
         "We'll also follow up with a personalised quote — no obligation."
@@ -388,14 +388,14 @@ def build_pdf(result, econ, climate_key, application, existing_system, install_c
 def _show_standard_results(result, econ, application, existing_system,
                            install_cost, lead_name, climate, location):
     name_tag = f", {lead_name}" if lead_name else ""
-    st.success(f"✅ Your results are ready{name_tag}!")
+    st.success(f"Results ready{name_tag}")
 
     # System line
     if "recommended_capacity_kw" in result:
         sys_desc = f"Air-source heat pump · **{result['recommended_capacity_kw']} kW** capacity"
     else:
         sys_desc = f"Heat pump water heater · **{result['recommended_volume_l']} L** tank"
-    st.markdown(f"🔧 **Recommended system:** {sys_desc}")
+    st.markdown(f"**Recommended system:** {sys_desc}")
     st.divider()
 
     # Hero savings metrics
@@ -403,10 +403,10 @@ def _show_standard_results(result, econ, application, existing_system,
     co2_sav = econ["annual_co2_savings_kg"]
     payback = econ["payback_years"]
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("💰 Annual savings",  f"€{savings:,.0f}/yr")
-    c2.metric("⚡ HP electricity",  f"{result['annual_electricity_kwh']:,} kWh/yr")
-    c3.metric("🌱 CO₂ reduction",   f"{co2_sav:,.0f} kg/yr")
-    c4.metric("📅 Payback period",  f"{payback} yrs" if payback else "n/a")
+    c1.metric("Annual savings",     f"€{savings:,.0f}/yr")
+    c2.metric("HP electricity use", f"{result['annual_electricity_kwh']:,} kWh/yr")
+    c3.metric("CO₂ reduction",      f"{co2_sav:,.0f} kg/yr")
+    c4.metric("Payback period",     f"{payback} yrs" if payback else "n/a")
 
     # Cost comparison chart
     cur = econ["annual_existing_cost_eur"]
@@ -432,7 +432,7 @@ def _show_standard_results(result, econ, application, existing_system,
     st.divider()
     pdf = build_pdf(result, econ, location, application, existing_system, install_cost, lead_name)
     fname = application.split("(")[0].strip().replace(" ", "_")
-    st.download_button("📄 Download Report (PDF)", pdf,
+    st.download_button("Download PDF Report", pdf,
                        f"Thotec_{fname}_Report.pdf", "application/pdf")
 
     # ── Admin technical details ───────────────────────────────
@@ -492,16 +492,16 @@ def _show_gulf_results(result, climate, install_cost, existing_system, lead_name
     co2_savings   = co2_baseline - co2_combined
     payback       = round(install_cost / savings_eur, 1) if savings_eur > 0 and install_cost > 0 else None
 
-    st.success(f"✅ Your Gulf Combined System results{name_greeting}!")
-    st.markdown(f"🔧 **Recommended system:** Air-source cooling HP · **{result['recommended_capacity_kw']} kW** · TES {result['tes_volume_l']} L · PV {result['pv_area_m2']} m²")
+    st.success(f"Gulf Combined System results{name_greeting}")
+    st.markdown(f"**Recommended system:** Air-source cooling HP · **{result['recommended_capacity_kw']} kW** · TES {result['tes_volume_l']} L · PV {result['pv_area_m2']} m²")
     st.divider()
 
     # ── Hero savings metrics ─────────────────────────────────────────────────
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("💰 Annual savings",   f"€{savings_eur:,.0f}/yr")
-    m2.metric("⚡ Energy saved",     f"{result['annual_savings_kwh']:,} kWh/yr")
-    m3.metric("🌱 CO₂ reduction",    f"{co2_savings:,.0f} kg/yr")
-    m4.metric("📅 Payback period",   f"{payback} yrs" if payback else "n/a")
+    m1.metric("Annual savings",      f"€{savings_eur:,.0f}/yr")
+    m2.metric("Energy saved",        f"{result['annual_savings_kwh']:,} kWh/yr")
+    m3.metric("CO₂ reduction",       f"{co2_savings:,.0f} kg/yr")
+    m4.metric("Payback period",      f"{payback} yrs" if payback else "n/a")
 
     # ── Cost comparison chart ────────────────────────────────────────────────
     fig_cmp = go.Figure(data=[go.Bar(
@@ -600,7 +600,7 @@ def _show_gulf_results(result, climate, install_cost, existing_system, lead_name
                                savings_eur, co2_savings, payback,
                                lead_name=lead_name)
     st.download_button(
-        label="📄 Download Report (PDF)",
+        label="Download PDF Report",
         data=pdf_bytes,
         file_name="Thotec_Gulf_Combined_Report.pdf",
         mime="application/pdf",
@@ -737,7 +737,7 @@ if not lead_gate(location, application):
 lead_name = st.session_state.get("lead_name", "")
 
 if "_gsheets_err" in st.session_state:
-    st.warning(f"⚠️ Google Sheets error: {st.session_state['_gsheets_err']}")
+    st.warning(f"Google Sheets error: {st.session_state['_gsheets_err']}")
 
 if st.session_state.get("run_calculation"):
     st.session_state.run_calculation = False
@@ -775,4 +775,4 @@ if st.session_state.get("run_calculation"):
         _show_gulf_results(result, climate, install_cost, existing_system, lead_name)
 
 else:
-    st.info("👈 Configure your system in the sidebar, then click **Calculate**.")
+    st.info("Configure your system in the sidebar, then click Calculate.")
