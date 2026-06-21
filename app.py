@@ -78,14 +78,22 @@ def _save_to_gsheets(row):
         if not creds_dict or not sheet_id:
             return False, "Secrets not configured"
         # gspread v6: service_account_from_dict handles auth automatically
+        import re as _re
         creds_info = dict(creds_dict)
-        # Normalise private key — handle all copy-paste variants
+        # Rebuild PEM key robustly — handles all copy-paste variants
         key = creds_info.get("private_key", "")
-        # Replace literal \n (two chars) with real newline
-        if "\\n" in key:
-            key = key.replace("\\n", "\n")
-        # Replace Windows line endings
-        key = key.replace("\r\n", "\n").replace("\r", "\n")
+        # Step 1: convert any literal \n (two chars) to real newline
+        key = key.replace("\\n", "\n").replace("\r", "")
+        # Step 2: extract header / body / footer and reformat
+        m = _re.match(
+            r"(-{5}BEGIN [^-]+-{5})(.*?)(-{5}END [^-]+-{5})",
+            key, _re.DOTALL
+        )
+        if m:
+            header, body, footer = m.group(1), m.group(2), m.group(3)
+            body = _re.sub(r"\s+", "", body)          # strip all whitespace
+            lines = [body[i:i+64] for i in range(0, len(body), 64)]
+            key = header + "\n" + "\n".join(lines) + "\n" + footer + "\n"
         creds_info["private_key"] = key
         client = gspread.service_account_from_dict(creds_info)
         sheet  = client.open_by_key(sheet_id).sheet1
