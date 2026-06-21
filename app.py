@@ -79,8 +79,14 @@ def _save_to_gsheets(row):
             return False, "Secrets not configured"
         # gspread v6: service_account_from_dict handles auth automatically
         creds_info = dict(creds_dict)
-        # Fix literal \\n in private_key (common when pasting from JSON into TOML)
-        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+        # Normalise private key — handle all copy-paste variants
+        key = creds_info.get("private_key", "")
+        # Replace literal \n (two chars) with real newline
+        if "\\n" in key:
+            key = key.replace("\\n", "\n")
+        # Replace Windows line endings
+        key = key.replace("\r\n", "\n").replace("\r", "\n")
+        creds_info["private_key"] = key
         client = gspread.service_account_from_dict(creds_info)
         sheet  = client.open_by_key(sheet_id).sheet1
         # Add header row if sheet is empty
