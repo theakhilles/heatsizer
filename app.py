@@ -191,6 +191,18 @@ with st.sidebar:
     if run:
         st.session_state.run_calculation = True
 
+    st.divider()
+    with st.expander("🔐 Admin"):
+        pwd = st.text_input("Password", type="password", key="admin_pwd")
+        if pwd:
+            correct = st.secrets.get("ADMIN_PASSWORD", "thotec-admin")
+            if pwd == correct:
+                st.session_state.admin_mode = True
+                st.success("✅ Admin mode active")
+            else:
+                st.session_state.admin_mode = False
+                st.error("Wrong password")
+
 climate = dict(climate)
 climate["electricity_price"] = elec_price_override
 
@@ -423,6 +435,48 @@ def _show_standard_results(result, econ, application, existing_system,
     st.download_button("📄 Download Report (PDF)", pdf,
                        f"Thotec_{fname}_Report.pdf", "application/pdf")
 
+    # ── Admin technical details ───────────────────────────────
+    if st.session_state.get("admin_mode"):
+        with st.expander("🔐 Thotec Pro — Engineering Details", expanded=True):
+            st.markdown("#### System Sizing")
+            a1, a2, a3 = st.columns(3)
+            if "design_load_kw" in result:
+                a1.metric("Design load", f"{result['design_load_kw']} kW")
+            if "delta_t_design_k" in result:
+                a2.metric("Design ΔT", f"{result['delta_t_design_k']} K")
+            if "buffer_tank_l" in result:
+                a3.metric("Buffer tank", f"{result['buffer_tank_l']} L")
+            if "daily_demand_l" in result:
+                a1.metric("Daily DHW demand", f"{result['daily_demand_l']} L/day")
+            if "recommended_volume_l" in result:
+                a2.metric("Tank volume", f"{result['recommended_volume_l']} L")
+
+            st.markdown("#### Performance")
+            b1, b2, b3 = st.columns(3)
+            if "scop_estimate" in result:
+                b1.metric("SCOP", result["scop_estimate"])
+            if "cop_estimate" in result:
+                b1.metric("COP", result["cop_estimate"])
+            if "eer_estimate" in result:
+                b1.metric("EER", result["eer_estimate"])
+            thermal = result.get("annual_heat_demand_kwh") or result.get("annual_cool_demand_kwh", 0)
+            b2.metric("Annual thermal demand", f"{thermal:,} kWh")
+            b3.metric("Annual electricity", f"{result['annual_electricity_kwh']:,} kWh")
+
+            st.markdown("#### Equipment & Economics")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Supplier model", result["recommended_model"])
+            c2.metric("FOB price", f"€{result['fob_eur']:,}")
+            c3.metric("HP running cost", f"€{econ['annual_hp_running_cost_eur']:,.0f}/yr")
+
+            st.markdown("#### Climate Data")
+            cl = result["climate"]
+            d1, d2, d3, d4 = st.columns(4)
+            d1.metric("HDD", cl.get("HDD", "n/a"))
+            d2.metric("CDD", cl.get("CDD", "n/a"))
+            d3.metric("Gas price", f"€{cl.get('gas_price', 'n/a')}/kWh")
+            d4.metric("Grid CO₂", f"{cl.get('grid_co2_kg_per_kwh', 'n/a')} kg/kWh")
+
 
 # ── Gulf Combined System results ─────────────────────────────
 def _show_gulf_results(result, climate, install_cost, existing_system, lead_name):
@@ -552,6 +606,36 @@ def _show_gulf_results(result, climate, install_cost, existing_system, lead_name
         mime="application/pdf",
     )
 
+    # ── Admin technical details ───────────────────────────────
+    if st.session_state.get("admin_mode"):
+        with st.expander("🔐 Thotec Pro — Gulf Engineering Details", expanded=True):
+            st.markdown("#### System Sizing")
+            a1, a2, a3, a4 = st.columns(4)
+            a1.metric("HP capacity",       f"{result['recommended_capacity_kw']} kW")
+            a2.metric("Supplier model",    result["recommended_model"])
+            a3.metric("FOB price",         f"€{result['fob_eur']:,}")
+            a4.metric("TES volume",        f"{result['tes_volume_l']} L")
+
+            st.markdown("#### Performance")
+            b1, b2, b3, b4 = st.columns(4)
+            b1.metric("EER day",           result["eer_day"])
+            b2.metric("EER night",         result["eer_night"])
+            b3.metric("TES night fraction",f"{int(result['tes_fraction']*100)}%")
+            b4.metric("HR effectiveness",  f"{int(result['eta_hr']*100)}%")
+
+            st.markdown("#### Energy Flows")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Annual cooling demand", f"{result['annual_cool_demand_kwh']:,} kWh")
+            c2.metric("Annual DHW demand",     f"{result['annual_dhw_demand_kwh']:,} kWh")
+            c3.metric("TES savings",           f"{result['tes_savings_kwh']:,} kWh")
+            c4.metric("DHW heat recovery",     f"{result['hr_fraction']}% of demand")
+
+            st.markdown("#### Climate & Grid")
+            cl = result["climate"]
+            d1, d2, d3 = st.columns(3)
+            d1.metric("Grid CO₂", f"{cl.get('grid_co2_kg_per_kwh','n/a')} kg/kWh")
+            d2.metric("Elec price", f"€{cl.get('electricity_price','n/a')}/kWh")
+            d3.metric("Night ambient T", f"{result['climate'].get('t_amb_night','n/a')} °C")
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -652,7 +736,6 @@ if not lead_gate(location, application):
 
 lead_name = st.session_state.get("lead_name", "")
 
-# Show Google Sheets error if any (persists across rerun)
 if "_gsheets_err" in st.session_state:
     st.warning(f"⚠️ Google Sheets error: {st.session_state['_gsheets_err']}")
 
@@ -693,3 +776,4 @@ if st.session_state.get("run_calculation"):
 
 else:
     st.info("\U0001f448 Configure your system in the sidebar, then click **Calculate**.")
+e your system in the sidebar, then click **Calculate**.")
